@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Приложение предсказания</title>
+</head>
+<body>
+    <h1>Загрузите фотографию</h1>
+    <form method="post" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <button type="submit">Загрузить фотографию</button>
+    </form>
+
+    {% if filename %}
+    <h2>Фотография загружена: {{ filename }}</h2>
+    <img src="{{ url_for('static', filename='uploads/' + filename) }}" alt="Загруженное изображение" width="300">
+    <form action="{{ url_for('predict', filename=filename) }}">
+        <button type="submit">Predict</button>
+    </form>
+    {% endif %}
+</body>
+</html>
