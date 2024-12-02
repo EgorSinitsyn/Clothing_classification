@@ -7,7 +7,7 @@ from PIL import Image
 import numpy as np
 
 # Загрузка модели
-model = load_model('xception_v3_05_0.824.keras')
+model = load_model('xception_v4_large_06_0.886.keras')
 
 # Метки классов
 labels = {
@@ -60,7 +60,7 @@ def predict(filename):
 
     try:
         # Шаг 1: Загрузка изображения
-        img = Image.open(filepath).resize((150, 150))  # Изменение размера до 150x150 для Xception
+        img = Image.open(filepath).resize((299, 299))  # Изменение размера до 150x150 для Xception
 
         # Шаг 2: Преобразование изображения в массив Numpy
         x = np.array(img)
