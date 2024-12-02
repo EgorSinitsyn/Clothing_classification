@@ -38,7 +38,8 @@ def init_database():
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS logs (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    timestamp DATETIME NOT NULL,
+                    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    ip_address VARCHAR(45) NOT NULL,
                     method VARCHAR(10) NOT NULL,
                     path VARCHAR(255) NOT NULL,
                     status_code INT NOT NULL,
