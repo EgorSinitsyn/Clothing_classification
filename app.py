@@ -5,6 +5,7 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.applications.xception import preprocess_input
 from PIL import Image
 import numpy as np
+import time
 
 # Загрузка модели
 model = load_model('xception_v4_large_06_0.886.keras')
@@ -34,6 +35,19 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# Очистка папки uploads от старых файлов
+def clean_uploads_folder(max_age=3600):  # max_age задаётся в секундах (1 час = 3600 секунд)
+    folder = app.config['UPLOAD_FOLDER']
+    for filename in os.listdir(folder):
+        filepath = os.path.join(folder, filename)
+        # Проверяем, файл ли это и не используется ли он прямо сейчас
+        if os.path.isfile(filepath):
+            file_age = time.time() - os.path.getmtime(filepath)
+            if file_age > max_age:  # Если файл старше max_age
+                os.remove(filepath)
+                print(f"Удалён файл: {filepath}")
 
 # Главная страница
 @app.route('/', methods=['GET', 'POST'])
@@ -83,4 +97,5 @@ def predict(filename):
         return f"Ошибка при обработке изображения: {e}"
 
 if __name__ == '__main__':
+    clean_uploads_folder(max_age=3600) # Удаление файлов старше 1 часа
     app.run(debug=True)
