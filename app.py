@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for
 from werkzeug.utils import secure_filename
-from tensorflow.keras.models import load_model
-from tensorflow.keras.applications.xception import preprocess_input
 from PIL import Image
 import numpy as np
 import time
@@ -9,26 +7,10 @@ from dotenv import load_dotenv
 import os
 import mysql.connector
 from mysql.connector import Error
+import requests
 
 # Загружаем переменные окружения из .env файла
 load_dotenv()
-
-# Загрузка модели
-model = load_model('xception_v4_large_06_0.886.keras')
-
-# Метки классов
-labels = {
-    0: 'dress',
-    1: 'hat',
-    2: 'longsleeve',
-    3: 'outwear',
-    4: 'pants',
-    5: 'shirt',
-    6: 'shoes',
-    7: 'shorts',
-    8: 'skirt',
-    9: 't-shirt'
-}
 
 # Инициализация Flask приложения
 app = Flask(__name__)
@@ -86,6 +68,22 @@ def log_request(ip, method, path, status_code, response_time):
         finally:
             connection.close()
 
+# Функция для взаимодействия с микросервисом model_service.py
+def get_prediction_from_microservice(filepath):
+    url = 'http://localhost:5001/predict'  # Адрес вашего микросервиса
+    try:
+        with open(filepath, 'rb') as f:
+            files = {'file': f}
+            response = requests.post(url, files=files)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('prediction')
+        else:
+            print(f"Ошибка от микросервиса: {response.json().get('error')}")
+            return None
+    except Exception as e:
+        print(f"Ошибка при подключении к микросервису: {e}")
+        return None
 
 # Главная страница
 @app.route('/', methods=['GET', 'POST'])
@@ -118,35 +116,28 @@ def predict(filename):
     start_time = time.time()  # Время начала обработки запроса
 
     try:
-        # Шаг 1: Загрузка изображения
-        img = Image.open(filepath).resize((299, 299))  # Изменение размера до 150x150 для Xception
+        # Получаем предсказание от микросервиса
+        predicted_label = get_prediction_from_microservice(filepath)
 
-        # Шаг 2: Преобразование изображения в массив Numpy
-        x = np.array(img)
-
-        # Шаг 3: Создание батча изображений
-        X = np.array([x])  # Добавление измерения для батча
-
-        # Шаг 4: Нормализация изображения
-        X = preprocess_input(X)  # Функция из Keras для Xception
-
-        # Шаг 5: Предсказание модели
-        pred = model.predict(X)
-
-        # Шаг 6: Определение метки класса
-        predicted_label = labels[pred[0].argmax()]
-
-        # Логирование
-        status_code = 200
-        log_request(request.remote_addr, 'GET', f'/predict/{filename}', status_code, f"{(time.time() - start_time) * 1000:.2f}ms")
-
-        # Возврат результата
-        return render_template('result.html', result=predicted_label)
+        if predicted_label:
+            # Логирование
+            status_code = 200
+            log_request(request.remote_addr, 'GET', f'/predict/{filename}', status_code,
+                        f"{(time.time() - start_time) * 1000:.2f}ms")
+            # Возврат результата
+            return render_template('result.html', result=predicted_label)
+        else:
+            # Если предсказание не получено, возвращаем ошибку
+            status_code = 500
+            log_request(request.remote_addr, 'GET', f'/predict/{filename}', status_code,
+                        f"{(time.time() - start_time) * 1000:.2f}ms")
+            return "Ошибка при получении предсказания от микросервиса"
     except Exception as e:
         # Логирование ошибки
         status_code = 500
-        log_request(request.remote_addr, 'GET', f'/predict/{filename}', status_code, f"{(time.time() - start_time) * 1000:.2f}ms")
-        return f"Ошибка при обработке изображения: {e}"
+        log_request(request.remote_addr, 'GET', f'/predict/{filename}', status_code,
+                    f"{(time.time() - start_time) * 1000:.2f}ms")
+        return f"Ошибка при обработке запроса: {e}"
 
 if __name__ == '__main__':
     clean_uploads_folder(max_age=3600)  # Удаление файлов старше 1 часа
