@@ -54,19 +54,20 @@ def get_db_connection():
         return None
 
 # Логирование в базу данных
-def log_request(ip, method, path, status_code, response_time):
+def log_request(ip, method, path, status_code, response_time, predicted_label=None, is_right_answer=None):
     connection = get_db_connection()
     if connection:
         try:
             cursor = connection.cursor()
             cursor.execute("""
-                INSERT INTO logs (ip_address, method, path, status_code, response_time) 
-                VALUES (%s, %s, %s, %s, %s)
-            """, (ip, method, path, status_code, response_time))
+                INSERT INTO logs (ip_address, method, path, status_code, response_time, model_predict, is_right_answer) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (ip, method, path, status_code, response_time, predicted_label, is_right_answer))
             connection.commit()
             cursor.close()
         finally:
             connection.close()
+
 
 # Функция для взаимодействия с микросервисом model_service.py
 def get_prediction_from_microservice(filepath):
@@ -109,6 +110,7 @@ def index():
     log_request(request.remote_addr, 'GET', '/', status_code, f"{(time.time() - start_time) * 1000:.2f}ms")
     return render_template('index.html')
 
+
 # Маршрут для предсказания
 @app.route('/predict/<filename>')
 def predict(filename):
@@ -122,22 +124,70 @@ def predict(filename):
         if predicted_label:
             # Логирование
             status_code = 200
-            log_request(request.remote_addr, 'GET', f'/predict/{filename}', status_code,
-                        f"{(time.time() - start_time) * 1000:.2f}ms")
+            log_request(
+                ip=request.remote_addr,
+                method="GET",
+                path=f"/predict/{filename}",
+                status_code=status_code,
+                response_time=f"{(time.time() - start_time) * 1000:.2f}ms",
+                predicted_label=predicted_label  # Передаём предсказанный класс
+            )
             # Возврат результата
             return render_template('result.html', result=predicted_label)
         else:
             # Если предсказание не получено, возвращаем ошибку
             status_code = 500
-            log_request(request.remote_addr, 'GET', f'/predict/{filename}', status_code,
-                        f"{(time.time() - start_time) * 1000:.2f}ms")
+            log_request(
+                ip=request.remote_addr,
+                method="GET",
+                path=f"/predict/{filename}",
+                status_code=status_code,
+                response_time=f"{(time.time() - start_time) * 1000:.2f}ms",
+                predicted_label=None  # В случае ошибки передаём None
+            )
             return "Ошибка при получении предсказания от микросервиса"
     except Exception as e:
         # Логирование ошибки
         status_code = 500
-        log_request(request.remote_addr, 'GET', f'/predict/{filename}', status_code,
-                    f"{(time.time() - start_time) * 1000:.2f}ms")
+        log_request(
+            ip=request.remote_addr,
+            method="GET",
+            path=f"/predict/{filename}",
+            status_code=status_code,
+            response_time=f"{(time.time() - start_time) * 1000:.2f}ms",
+            predicted_label=None
+        )
         return f"Ошибка при обработке запроса: {e}"
+
+
+@app.route('/feedback', methods=['POST'])
+def feedback():
+    start_time = time.time()  # Время начала обработки запроса
+
+    # Получаем данные из формы
+    predicted_label = request.form.get('predicted_label')
+    is_right_answer = request.form.get('is_right_answer')  # Значение 1 (Да) или 0 (Нет)
+
+    if is_right_answer is not None:
+        try:
+            # Преобразуем ответ в целое число
+            is_right_answer = int(is_right_answer)
+
+            # Логирование в базу данных
+            log_request(
+                ip=request.remote_addr,
+                method="POST",
+                path="/feedback",
+                status_code=200,
+                response_time=f"{(time.time() - start_time) * 1000:.2f}ms",
+                predicted_label=predicted_label,
+                is_right_answer=is_right_answer
+            )
+            return "Спасибо за ваш ответ!"
+        except Exception as e:
+            return f"Ошибка при записи в базу данных: {e}", 500
+    else:
+        return "Некорректный ответ", 400
 
 if __name__ == '__main__':
     clean_uploads_folder(max_age=3600)  # Удаление файлов старше 1 часа

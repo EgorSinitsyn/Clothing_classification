@@ -3,6 +3,7 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.applications.xception import preprocess_input
 from PIL import Image
 import numpy as np
+import time
 
 
 # Загрузка модели
@@ -46,6 +47,8 @@ def predict():
             # Возврат результата
             return jsonify({'prediction': predicted_label})
         except Exception as e:
+
+            # Возврат ошибки
             return jsonify({'error': str(e)}), 500
     else:
         return jsonify({'error': 'Некорректный файл'}), 400

@@ -7,6 +7,15 @@
 <body>
     <h1>Результат предсказания</h1>
     <p>Предсказанный класс: {{ result }}</p>
+
+    <!-- Форма для обратной связи -->
+    <form action="{{ url_for('feedback', filename=filename) }}" method="POST">
+    <p>Модель угадала ответ?</p>
+    <input type="hidden" name="predicted_label" value="{{ result }}">
+    <button type="submit" name="is_right_answer" value="1">Да</button>
+    <button type="submit" name="is_right_answer" value="0">Нет</button>
+    </form>
+
     <a href="{{ url_for('index') }}">Назад</a>
 </body>
 </html>

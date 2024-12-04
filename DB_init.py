@@ -43,7 +43,9 @@ def init_database():
                     method VARCHAR(10) NOT NULL,
                     path VARCHAR(255) NOT NULL,
                     status_code INT NOT NULL,
-                    response_time VARCHAR(50)
+                    response_time VARCHAR(50),
+                    model_predict VARCHAR(15),
+                    is_right_answer BOOLEAN  
                 );
             ''')
             print("Таблица 'logs' успешно создана или уже существует.")
