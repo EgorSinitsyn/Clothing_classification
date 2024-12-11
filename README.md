@@ -20,6 +20,7 @@
     clothing-classification-app/
     │
     │── clothing-dataset-small/ # Скаченный датасет с картинками (см. clothing-traing.ipynb)
+    │── Deployment/             # Преобразование модели, подготовка Docker-образа, тестирование и развертывание
     ├── app.py                  # Главное приложение
     ├── model_service.py        # Микросервис модели
     ├── requirements.txt        # Зависимости проекта
