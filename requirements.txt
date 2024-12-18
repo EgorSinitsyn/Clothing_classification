@@ -6,3 +6,5 @@ Pillow==9.4.0
 mysql-connector-python==8.0.33
 python-dotenv==1.0.0
 Werkzeug==2.3.4
+gunicorn
+mlflow
