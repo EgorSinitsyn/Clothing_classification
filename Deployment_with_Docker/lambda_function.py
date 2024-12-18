@@ -9,7 +9,7 @@ app = Flask(__name__)
 preprocessor = create_preprocessor('xception', target_size=(299, 299))
 
 # Загрузка модели
-interpreter = tflite.Interpreter(model_path='Deployment/clothing-model-v4-0.886.tflite')
+interpreter = tflite.Interpreter(model_path='Deployment_with_Docker/clothing-model-v4-0.886.tflite')
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
