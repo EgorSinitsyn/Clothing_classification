@@ -1,16 +1,23 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 from PIL import Image
-import numpy as np
+import os
 import time
 from dotenv import load_dotenv
-import os
 import mysql.connector
 from mysql.connector import Error
 import requests
+import logging
+import mlflow
 
 # Загружаем переменные окружения из .env файла
 load_dotenv()
+
+# Установка трекингового URI
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+
+# Инициализация логирования
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Инициализация Flask приложения
 app = Flask(__name__)
@@ -18,6 +25,17 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads/'
 
 # Разрешенные расширения файлов
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# Поддерживаемые MIME-типы
+ALLOWED_MIME_TYPES = {
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/pjpeg',
+    'image/x-png',
+    'image/gif',
+    'image/webp'
+}
 
 # Функция проверки расширения файла
 def allowed_file(filename):
@@ -71,19 +89,31 @@ def log_request(ip, method, path, status_code, response_time, predicted_label=No
 
 # Функция для взаимодействия с микросервисом model_service.py
 def get_prediction_from_microservice(filepath):
-    url = 'http://localhost:5001/predict'  # Адрес вашего микросервиса
+    url = 'http://localhost:5001/predict'  # Адрес микросервиса
     try:
         with open(filepath, 'rb') as f:
-            files = {'file': f}
+            # Определение MIME-типа на основе расширения файла
+            ext = filepath.rsplit('.', 1)[1].lower()
+            mime_types = {
+                'png': 'image/png',
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'gif': 'image/gif',
+                'webp': 'image/webp'
+            }
+            mime_type = mime_types.get(ext, 'application/octet-stream')
+            files = {'file': (os.path.basename(filepath), f, mime_type)}
             response = requests.post(url, files=files)
         if response.status_code == 200:
             data = response.json()
+            logging.info(f"Получено предсказание от микросервиса: {data.get('prediction')}")
             return data.get('prediction')
         else:
-            print(f"Ошибка от микросервиса: {response.json().get('error')}")
+            error_message = data.get('error', 'Неизвестная ошибка')
+            logging.error(f"Ошибка от микросервиса: {error_message}")
             return None
     except Exception as e:
-        print(f"Ошибка при подключении к микросервису: {e}")
+        logging.error(f"Ошибка при подключении к микросервису: {e}")
         return None
 
 # Главная страница
