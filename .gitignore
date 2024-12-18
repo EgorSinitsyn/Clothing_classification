@@ -1,2 +1,5 @@
 /.idea/
 .env
+/mlruns/
+mlflow.db
+model_service.log
